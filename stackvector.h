@@ -55,6 +55,8 @@ public:
 		}
 	}
 	
+	StackVector() = delete;
+	
 	~StackVector()
 	{
 		if (_callConstructorsDestructors && _memory) {
@@ -135,7 +137,7 @@ public:
 		return _memory[index];
 	}
 
-private:
+protected:
 	bool canReserveStack(const size_t size, const size_t mustLeaveStackSizeForScope) const
 	{
 		struct Task *t = FindTask(NULL);
@@ -170,3 +172,40 @@ private:
 	bool     _callFree : 1;
 	bool     _callConstructorsDestructors : 1;
 };
+
+#ifdef __OBJC__
+
+#import <ob/OBArray.h>
+
+class IDVector : public StackVector<id>
+{
+public:
+	IDVector(size_t size) : StackVector<id>(size, 32 * 1024, false) { };
+};
+
+/*
+** GCC doesn't really compile fast enumeration in ObjectiveC++ files, so this can be used to replace it.
+** Example:
+**  BOOL found = NO;
+** 	FastEnumerator<OBString*> objects(stringarray,[&found](OBString* &string, size_t index) {
+**    if ([string isEqualToString:@"string we're looking for"]) {
+**       found = YES; return false;
+**    }
+**    return true; // keep going
+**  });
+*/
+
+template <typename O> class FastEnumerator : protected StackVector<O> 
+{
+public:
+	FastEnumerator(OBArray *arrayToEnumerate, std::function<bool(O& member, size_t index)> && enumCallback) : StackVector<O>([arrayToEnumerate count], 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory];
+			StackVector<O>::whileEach(std::move(enumCallback));
+		}
+	};
+	FastEnumerator() = delete;
+	~FastEnumerator() = default;
+};
+
+#endif
