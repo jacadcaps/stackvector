@@ -3,6 +3,16 @@
 
 unsigned long __stack = 64 * 1024;
 
+class test {
+	static size_t _cnt;
+	public:
+		test() { _val = _cnt ++; };
+		~test() { printf("destruct val %ld\n", _val); };
+	private:
+		size_t _val;
+};
+size_t test::_cnt = 1;
+
 int main(void)
 {
 	StackVector<int> stack(10);
@@ -24,9 +34,7 @@ int main(void)
 
 	StackVector<int> stack2(500000);
 
-	{
-		StackVector<int> stack3(32*1024, 2048);
-	}
+	StackVector<test> stack3(100, 2048);
 
 	return 0;
 }

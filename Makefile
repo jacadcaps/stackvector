@@ -29,6 +29,7 @@ CC_DEBUG = ppc-morphos-gcc-9
 CFLAGS_DEBUG = -g -O0
 CXX_DEBUG = ppc-morphos-g++-9
 CPPFLAGS_DEBUG = -g -O0 -fno-exceptions
+CPPDEFINES_DEBUG = -DDEBUG=1
 OBJCC_DEBUG = ppc-morphos-clang
 OBJCFLAGS_DEBUG = -fobjc-runtime=objfw -fconstant-string-class=OBConstantString -g -O0
 OBJCINCLUDES_DEBUG = -I/SDK/Frameworks/include

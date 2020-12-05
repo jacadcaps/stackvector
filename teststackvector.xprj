@@ -10,7 +10,7 @@
         <Option quietoutput="1"/>
         <Option cvscommand="gg:bin/cvs"/>
         <Option defaulttarget="RELEASE"/>
-        <Option activetarget="RELEASE"/>
+        <Option activetarget="DEBUG"/>
         <Option crossbuild="0"/>
         <Option crossserver=""/>
         <Option crosslogin=""/>
@@ -46,7 +46,7 @@
                 <Option cxx="ppc-morphos-g++-9"/>
                 <Option cppflags="-g -O0 -fno-exceptions"/>
                 <Option cppincludes=""/>
-                <Option cppdefines=""/>
+                <Option cppdefines="-DDEBUG=1"/>
                 <Option objcc_predefined="8"/>
                 <Option objcc="ppc-morphos-clang"/>
                 <Option objcflags="-fobjc-runtime=objfw -fconstant-string-class=OBConstantString -g -O0"/>

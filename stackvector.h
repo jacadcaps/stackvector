@@ -1,3 +1,4 @@
+/* Written by Jacek Piszczek. Licensed as Public Domain. Target OS: MorphOS. */
 #pragma once
 #include <cstdio>
 #include <string>
@@ -7,36 +8,61 @@
 #include <alloca.h>
 #include <functional>
 
-#define STACKVECTORDEBUG
-#ifdef STACKVECTORDEBUG
+#if defined(DEBUG) && DEBUG
 extern "C" { void dprintf(const char *,...); };
 #define SVOUT printf 
+#else
+#define SVOUT(...)
 #endif
+
+/* Helper class aiming to streamline creation of temporary vectors for OBArray object iterations 
+** in ObjectiveC++ applications, but may have other uses too. The memory for the vector is allocated
+** either on stack (if there's enough of it to spare AND the object itself was also allocated
+** on stack) or heap. */
 
 template <typename T> class StackVector
 {
 public:
-	__attribute__((always_inline)) StackVector(const size_t size, const size_t mustLeaveStackSizeForScope = (16 * 1024))
-		: _size(size), _callFree(false)
+	/* MUST be inlined or alloca() would fail to survive past this method */
+	__attribute__((always_inline)) StackVector(const size_t size, const size_t mustLeaveStackSizeForScope = (16 * 1024), bool callConstructorsDestructors = true)
+		: _size(size), _callFree(false), _callConstructorsDestructors(callConstructorsDestructors)
 	{
 		const size_t needBytes = size * sizeof(T);
 		bool onStack = canReserveStack(needBytes, mustLeaveStackSizeForScope) ;
 
-		if (onStack)
-		{
+		if (onStack) {
+#if defined(DEBUG) && DEBUG
+			struct Task *t = FindTask(NULL);
+			ULONG usedStack = 0, usedStackAfterAlloca = 0;
+			NewGetTaskAttrsA(t, &usedStack, sizeof (usedStack), TASKINFOTYPE_USEDSTACKSIZE, NULL);
 			_memory = static_cast<T*>(alloca(needBytes));
-			SVOUT("%s: allocated on stack %p, confirmed %d\n", __PRETTY_FUNCTION__, _memory, isAllocatedOnStack());
+			NewGetTaskAttrsA(t, &usedStackAfterAlloca, sizeof (usedStackAfterAlloca), TASKINFOTYPE_USEDSTACKSIZE, NULL);
+			SVOUT("%s: allocated on stack %p, alloca using stack? %d stack usage grew by %d\n", __PRETTY_FUNCTION__, _memory, isAllocatedOnStack(), usedStackAfterAlloca - usedStack);
+#else
+			_memory = static_cast<T*>(alloca(needBytes));
+#endif
 		}
-		else
-		{
+		else {
 			_memory = static_cast<T*>(malloc(needBytes));
 			_callFree = true;
 			SVOUT("%s: allocated on heap %p\n", __PRETTY_FUNCTION__, _memory);
+		}
+		
+		if (_callConstructorsDestructors && _memory) {
+			for (size_t i = 0; i < size; i++) {
+				new (&_memory[i]) T ();
+			}
 		}
 	}
 	
 	~StackVector()
 	{
+		if (_callConstructorsDestructors && _memory) {
+			for (size_t i = 0; i < _size; i++) {
+				(&_memory[i])->~T();
+			}
+		}
+
 		if (_callFree)
 		{
 			SVOUT("%s: freeing heap %p..\n", __PRETTY_FUNCTION__, _memory);
@@ -53,7 +79,8 @@ public:
 
 	// Invalid when called from another thread than the one that constructed the object
 	bool isAllocatedOnStack() const { return isStackAddress(FindTask(0), _memory); }
-	
+
+	// Iterates over the vector using a lambda
 	void forEach(std::function<void(T& member, size_t index)>&& onEach) {
 		if (_memory) {
 			for (size_t idx = 0; idx < _size; idx++) {
@@ -140,5 +167,6 @@ private:
 	
 	T       *_memory;
 	size_t   _size;
-	bool     _callFree;
+	bool     _callFree : 1;
+	bool     _callConstructorsDestructors : 1;
 };
