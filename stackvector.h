@@ -17,7 +17,7 @@ template <typename T> class StackVector
 {
 public:
 	__attribute__((always_inline)) StackVector(const size_t size, const size_t mustLeaveStackSizeForScope = (16 * 1024))
-		: _size(size)
+		: _size(size), _callFree(false)
 	{
 		const size_t needBytes = size * sizeof(T);
 		bool onStack = canReserveStack(needBytes, mustLeaveStackSizeForScope) ;
@@ -25,21 +25,26 @@ public:
 		if (onStack)
 		{
 			_memory = static_cast<T*>(alloca(needBytes));
-			SVOUT("%s: allocated on stack %p\n", __PRETTY_FUNCTION__, _memory);
+			SVOUT("%s: allocated on stack %p, confirmed %d\n", __PRETTY_FUNCTION__, _memory, isAllocatedOnStack());
 		}
 		else
 		{
 			_memory = static_cast<T*>(malloc(needBytes));
+			_callFree = true;
 			SVOUT("%s: allocated on heap %p\n", __PRETTY_FUNCTION__, _memory);
 		}
 	}
 	
 	~StackVector()
 	{
-		if (!isStackAddress(FindTask(0), _memory))
+		if (_callFree)
 		{
 			SVOUT("%s: freeing heap %p..\n", __PRETTY_FUNCTION__, _memory);
-			// free(_memory);
+			free(_memory);
+		}
+		else
+		{
+			SVOUT("%s: memory was alloca'd\n", __PRETTY_FUNCTION__);
 		}
 	}
 
@@ -104,20 +109,23 @@ public:
 	}
 
 private:
-	__attribute__ ((noinline))  bool canReserveStack(const size_t size, const size_t mustLeaveStackSizeForScope) const
+	bool canReserveStack(const size_t size, const size_t mustLeaveStackSizeForScope) const
 	{
 		struct Task *t = FindTask(NULL);
 		if (isStackAddress(t, const_cast<StackVector<T>*>(this)))
 		{
-			struct ETask *e = t->tc_ETask;
-			ULONG lower = ULONG(e->PPCSPLower);
-			register ULONG r1 asm("r1");
-			ULONG s = r1;
+			ULONG usedStack = 0;
+			if (0 != NewGetTaskAttrsA(t, &usedStack, sizeof (usedStack), TASKINFOTYPE_USEDSTACKSIZE, NULL))
+			{
+				struct ETask *e = t->tc_ETask;
+				ULONG lower = ULONG(e->PPCSPLower);
+				ULONG current = ULONG(e->PPCSPUpper) - usedStack;
 			
-			SVOUT("%s: 'this' was allocated on stack; r1 %p\n", __PRETTY_FUNCTION__, s);
+				SVOUT("%s: 'this' was allocated on stack; lower %p current %p current-size %p\n", __PRETTY_FUNCTION__, lower, current, current - size);
 			
-			/// if (lower + mustLeaveStackSizeForScope < (ULONG(s) - size))
-				return true;
+				if ((lower + mustLeaveStackSizeForScope) < (current - size))
+					return true;
+			}
 		}
 
 		return false;
@@ -132,4 +140,5 @@ private:
 	
 	T       *_memory;
 	size_t   _size;
+	bool     _callFree;
 };

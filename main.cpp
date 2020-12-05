@@ -21,11 +21,12 @@ int main(void)
 			printf("member at %d = %d\n", index, member);
 		});
 	}
-#if 0	
+
 	StackVector<int> stack2(500000);
+
 	{
 		StackVector<int> stack3(32*1024, 2048);
 	}
-#endif
+
 	return 0;
 }
