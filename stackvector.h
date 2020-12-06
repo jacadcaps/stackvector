@@ -190,6 +190,7 @@ protected:
 #ifdef __OBJC__
 
 #import <ob/OBArray.h>
+#import <mui/MUIFamily.h>
 
 class IDVector : public StackVector<id>
 {
@@ -218,8 +219,71 @@ public:
 			StackVector<O>::whileEach(std::move(enumCallback));
 		}
 	};
+	FastEnumerator(OBArray *arrayToEnumerate, OBRange && range, std::function<bool(O& member, size_t index)> && enumCallback) : StackVector<O>(range.length, 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory inRange:range];
+			StackVector<O>::whileEach(std::move(enumCallback));
+		}
+	};
 	FastEnumerator() = delete;
 	~FastEnumerator() = default;
+};
+
+template <typename O> class FastFamilyEnumerator : protected StackVector<O> 
+{
+public:
+	FastFamilyEnumerator(id<MUIFamily> arrayToEnumerate, std::function<bool(O& member, size_t index)> && enumCallback) : StackVector<O>([arrayToEnumerate count], 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory];
+			StackVector<O>::whileEach(std::move(enumCallback));
+		}
+	};
+	FastFamilyEnumerator(id<MUIFamily> arrayToEnumerate, OBRange && range, std::function<bool(O& member, size_t index)> && enumCallback) : StackVector<O>(range.length, 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory inRange:range];
+			StackVector<O>::whileEach(std::move(enumCallback));
+		}
+	};
+	FastFamilyEnumerator() = delete;
+	~FastFamilyEnumerator() = default;
+};
+
+template <typename O> class FastForEach: protected StackVector<O> 
+{
+public:
+	FastForEach(OBArray *arrayToEnumerate, std::function<void(O& member, size_t index)> && enumCallback) : StackVector<O>([arrayToEnumerate count], 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory];
+			StackVector<O>::forEach(std::move(enumCallback));
+		}
+	};
+	FastForEach(OBArray *arrayToEnumerate, OBRange && range, std::function<void(O& member, size_t index)> && enumCallback) : StackVector<O>(range.length, 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory inRange:range];
+			StackVector<O>::forEach(std::move(enumCallback));
+		}
+	};
+	FastForEach() = delete;
+	~FastForEach() = default;
+};
+
+template <typename O> class FastFamilyForEach : protected StackVector<O> 
+{
+public:
+	FastFamilyForEach(id<MUIFamily> arrayToEnumerate, std::function<void(O& member, size_t index)> && enumCallback) : StackVector<O>([arrayToEnumerate count], 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory];
+			StackVector<O>::forEach(std::move(enumCallback));
+		}
+	};
+	FastFamilyForEach(id<MUIFamily> arrayToEnumerate, OBRange && range, std::function<void(O& member, size_t index)> && enumCallback) : StackVector<O>(range.length, 32 * 1024, false) {
+		if (StackVector<O>::_memory) {
+			[arrayToEnumerate getObjects:StackVector<O>::_memory inRange:range];
+			StackVector<O>::forEach(std::move(enumCallback));
+		}
+	};
+	FastFamilyForEach() = delete;
+	~FastFamilyForEach() = default;
 };
 
 #endif
